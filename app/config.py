@@ -35,6 +35,7 @@ config = {
     'SLEEP_AFTER_SEEDING': os.environ.get('SLEEP_AFTER_SEEDING', 60), #in sec
     'ACCOUNT_PASSWORD' : os.environ.get('ACCOUNT_PASSWORD', "shkeeper"), #Password for restoring account in metamask or others, should be str
     'REDIS_HOST': os.environ.get('REDIS_HOST', 'redis'),
+    'ETHEREUM_HOST': os.environ.get('ETHEREUM_HOST', 'ethereum'),
    
 }
 
