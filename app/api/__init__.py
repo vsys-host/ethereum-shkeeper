@@ -14,9 +14,11 @@ def check_credentials():
                  and auth.password == config['API_PASSWORD']):
             return {'status': 'error', 'msg': 'authorization requred'}, 401
 
+
 @api.url_defaults
 def add_symbol(endpoint, values):
     values.setdefault('symbol', g.symbol)
+
 
 @api.url_value_preprocessor
 def pull_symbol(endpoint, values):
@@ -31,3 +33,5 @@ def handle_exception(e):
     return {"status": "error", "msg": str(e)}
 
 from . import payout, views
+
+

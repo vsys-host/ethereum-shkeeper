@@ -1,91 +1,135 @@
 import json
 from decimal import Decimal
 
-import tronpy.exceptions
 from flask import current_app, g
-from tronpy import Tron
-from tronpy.providers import HTTPProvider
+from web3 import Web3, HTTPProvider
+import decimal
+import requests
 
 from .. import events
-from ..config import get_contract_address
-from ..db import get_db, query_db
-from ..utils import get_confirmations, get_filter_config, get_tron_client, get_wallet_balance
+from ..config import config
+from ..models import Accounts, Settings, db
+from ..token import Token, Coin
 from ..logging import logger
-from ..trc20wallet import Trc20Wallet
 from . import api
+from app import create_app
 
+w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+
+
+app = create_app()
+app.app_context().push()
 
 @api.post("/generate-address")
-def generate_new_address():
-
-    client = Tron()
-    addresses = client.generate_address()
-
-    db = get_db()
-    db.execute(
-        "INSERT INTO keys (symbol, public, private, type) VALUES (?, ?, ?, 'onetime')",
-        (g.symbol, addresses['base58check_address'], addresses['private_key']),
-    )
-    db.commit()
-
-    events.FILTER = get_filter_config()
-    logger.info(f'Filter was updated. Total accounts: {events.analyze_filter(events.FILTER)}')
-
-    return {'status': 'success', 'base58check_address': addresses['base58check_address']}
+def generate_new_address():    
+    new_address = w3.geth.personal.new_account(config['ACCOUNT_PASSWORD'])
+    crypto_str = str(g.symbol)
+    with app.app_context():
+        db.session.add(Accounts(address = new_address, 
+                                            crypto = crypto_str,
+                                            amount = 0,
+                                            ))
+        
+        db.session.commit()
+        db.session.close()
+        db.session.remove()
+        db.engine.dispose()
+    logger.info(f'Added new address to DB')
+    return {'status': 'success', 'address': new_address}
 
 @api.post('/balance')
 def get_balance():
-    w = Trc20Wallet(g.symbol)
-    balance = w.tokens
+    crypto_str = str(g.symbol)   
+    if crypto_str == "ETH":
+        inst = Coin("ETH")
+        balance = inst.get_fee_deposit_coin_balance()
+    else:
+        if crypto_str in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
+            token_instance = Token(crypto_str)
+            balance = token_instance.get_fee_deposit_token_balance()
+        else:
+            return {'status': 'error', 'msg': 'token is not defined in config'}
     return {'status': 'success', 'balance': balance}
 
 @api.post('/status')
 def get_status():
-    client = get_tron_client()
-    block =  client.get_latest_block()
-    return {'status': 'success', 'last_block_timestamp': block['block_header']['raw_data']['timestamp'] // 1000}
+    with app.app_context():
+        pd = Settings.query.filter_by(name = 'last_block').first()
+    
+    last_checked_block_number = int(pd.value)
+    block =  w3.eth.get_block(w3.toHex(last_checked_block_number))
+    return {'status': 'success', 'last_block_timestamp': block['timestamp']}
 
 @api.post('/transaction/<txid>')
 def get_transaction(txid):
-
-    row = query_db('select * from events where txid = ?', (txid, ), one=True)
-    event_data = json.loads(row['event'])
-
-    rows = query_db('select public from keys where symbol = ?', (g.symbol, ))
-    addrs = [row['public'] for row in rows]
-
-    if event_data['topicMap']['to'] in addrs:
-            category = 'receive'
-            addr = event_data['topicMap']['to']
-
-    elif event_data['topicMap']['from'] in addrs:
-            category = 'send'
-            addr = event_data['topicMap']['from']
-
+    list_accounts = w3.geth.personal.list_accounts()
+    if g.symbol == 'ETH':
+        try:
+            transaction = w3.eth.get_transaction(txid)
+            if (transaction['to'] in list_accounts) and (transaction['from'] in list_accounts):
+                address = transaction["from"]
+                category = 'internal'
+            elif transaction['to'] in list_accounts:
+                address = transaction["to"]
+                category = 'receive'
+            elif transaction['from'] in list_accounts:                
+                address = transaction["from"]
+                category = 'send'
+            else:
+                return {'status': 'error', 'msg': 'txid is not related to any known address'}
+            amount = w3.fromWei(transaction["value"], "ether") 
+            confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+        except Exception as e:
+            # return e  
+            return {f'status': 'error', 'msg': {e}}
+    elif g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
+        token_instance  = Token(g.symbol)
+        try:
+            transaction = token_instance.get_token_transaction(txid)
+            if transaction is None:
+                return {'status': 'error', 'msg': 'txid is not found for this crypto '}
+            logger.warning(transaction)
+            if (transaction['args']['to'] in list_accounts) and (transaction['args']['from'] in list_accounts):
+                address = transaction['args']["from"]
+                category = 'internal'
+            elif transaction['args']['to'] in list_accounts:
+                address = transaction['args']["to"]
+                category = 'receive'
+            elif transaction['args']['from'] in list_accounts:                
+                address = transaction['args']["from"]
+                category = 'send'
+            else:
+                return {'status': 'error', 'msg': 'txid is not related to any known address'}
+            amount = Decimal(transaction['args']['tokens']) / Decimal(10** (token_instance.contract.functions.decimals().call()))
+            confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+        except Exception as e:
+            # return e 
+            raise e 
+            # return {f'status': 'error', 'msg': "wefwefe"}      
+        
     else:
-        return {'status': 'error', 'msg': 'txid is not related to any known address'}
 
-    client = get_tron_client()
-    contract_address = get_contract_address(g.symbol)
-    contract = client.get_contract(contract_address)
-    precision = contract.functions.decimals()
-    amount = Decimal(event_data['dataMap']['value']) / 10 ** precision
-    confirmations = get_confirmations(txid)
+        return {'status': 'error', 'msg': 'Currency is not defined in config'}
 
-    return {'address': addr, 'amount': amount, 'confirmations': confirmations, 'category': category}
+    # logger.warning({'address': address, 'amount': Decimal(amount), 'confirmations': confirmations, 'category': category})
+
+    return {'address': address, 'amount': Decimal(amount), 'confirmations': confirmations, 'category': category}
 
 @api.post('/dump')
 def dump():
-    rows = query_db('select * from keys where symbol = ? or type = "fee_deposit"', (g.symbol, ))
-    keys = [{key: row[key] for key in ('public', 'private', 'type', 'symbol')} for row in rows]
-    return {'accounts': keys}
+    coin_inst = Coin("ETH")
+    fee_address = coin_inst.get_fee_deposit_account()
+    r = requests.get('http://ethereum:8081',  headers={'X-Shkeeper-Backend-Key': "h8v/pgt6G2PxdEh/5oeSdMQi2TPBixIYb10Acs3F"})
+    ww = r.text.split("href=\"")
+    for key in ww:
+        if (key.find(fee_address.lower()[2:])) != -1:
+            zz=requests.get('http://ethereum:8081/'+str(key.split("\"")[0]),  headers={'X-Shkeeper-Backend-Key': "h8v/pgt6G2PxdEh/5oeSdMQi2TPBixIYb10Acs3F"})
+    print(zz.text)
+    return {'status': 'error', 'msg': "not implemented"}
 
 @api.post('/fee-deposit-account')
 def get_fee_deposit_account():
-    client = get_tron_client()
-    key = query_db('select * from keys where type = "fee_deposit"', one=True)
-    try:
-        balance = client.get_account_balance(key['public'])
-    except tronpy.exceptions.AddressNotFound:
-        balance = Decimal(0)
-    return {'account': key['public'], 'balance': balance}
+    token_instance = Token(g.symbol)
+    return {'account': token_instance.get_fee_deposit_account(), 
+            'balance': token_instance.get_fee_deposit_account_balance()}  
+    

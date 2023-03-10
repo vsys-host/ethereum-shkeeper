@@ -1,88 +1,108 @@
-import asyncio
+# import asyncio
 from collections import defaultdict
-import datetime
-import json
-import logging
-import os
-import traceback
+# import datetime
+# import json
+# import logging
+# import os
+# import traceback
+import time
 
-import httpx
-import websockets
 
-from .config import config
-from .db import save_event
+
+from web3 import Web3, HTTPProvider
+
+from .models import Settings, db
+from .config import config, get_contract_abi, get_contract_address
 from .logging import logger
+from .token import Token
 
 
-logging.getLogger("websockets").setLevel(getattr(logging, config['LOGGING_LEVEL']))
-logging.getLogger("websockets").addHandler(logging.StreamHandler())
 
-FILTER = {}
+# instantiate Web3 instance
+w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
 
-def analyze_filter(f):
-    v = defaultdict(list)
-    for key, value in sorted(f.items()):
-        v[value].append(key)
-    return { key: len(v[key]) for key in v }
+def handle_event(transaction):        
+    logger.info(f'new transaction: {transaction!r}')
 
-def apply_filter(msg):
-    cond = []
 
-    try:
-        cond = [
-            msg['triggerName'] == 'solidityEventTrigger',
-            msg['eventName'] == 'Transfer',
-            msg['topicMap']['to'] in FILTER,
-        ]
-    except Exception as e:
-        # logger.exception(f"Exception while appling filter to {msg}:")
-        pass
-    return bool(cond and all(cond))
+def log_loop(last_checked_block, check_interval):
+    from .tasks import walletnotify_shkeeper, drain_account
+    from app import create_app
+    app = create_app()
+    app.app_context().push()
 
-async def notify_shkeeper(symbol, txid):
     while True:
-        try:
-            async with httpx.AsyncClient() as client:
-                r = await client.post(
-                    f'http://{config["SHKEEPER_HOST"]}/api/v1/walletnotify/{symbol}/{txid}',
-                    headers={'X-Shkeeper-Backend-Key': config['SHKEEPER_KEY']}
-                )
-                return r
-        except Exception as e:
-            logger.warning(f'Shkeeper notification failed for {symbol}/{txid}: {e}')
-            await asyncio.sleep(10)
+        
+        list_accounts = w3.geth.personal.list_accounts()
+        last_block =  w3.eth.block_number
+        if last_checked_block == '' or last_checked_block is None:
+            last_checked_block = last_block
 
-async def ws_main():
+        if last_checked_block > last_block:
+            logger.exception(f'Last checked block {last_checked_block} is bigger than last block {last_block} in blockchain')
+        elif last_checked_block == last_block - 2:
+            pass
+        else:            
+            for x in range(last_checked_block + 1, last_block):   
 
-    while not FILTER:
-        logger.debug('Waiting for filter to be set.')
-        await asyncio.sleep(1)
-    logger.info(f'Filter has been set. Total accounts: {analyze_filter(FILTER)}')
+                logger.warning(f"now checking block {x}")
+                                
+                block = w3.eth.getBlock(x, True)
+                                
+                for transaction in block.transactions:
+                    if transaction['to'] in list_accounts or transaction['from']  in list_accounts:
+                        handle_event(transaction)
+                        walletnotify_shkeeper.delay('ETH', transaction['hash'].hex())
+                        if (transaction['to'] in list_accounts and transaction['from']  not in list_accounts) and ((w3.eth.block_number - x) < 40):
+                            drain_account.delay('ETH', transaction['to'])
 
-    ws_url = f"ws://{config['TRON_NODE_USERNAME']}:{config['TRON_NODE_PASSWORD']}@{config['EVENT_SERVER_HOST']}"
-    logger.info(f"Connecting to the event server at {ws_url}...")
-    async for websocket in websockets.connect(ws_url, ping_timeout=None):
-        logger.info(f'Connected to {ws_url}')
-        try:
-            async for message in websocket:
-                try:
-                    event = json.loads(message)
+                
+                for token in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
+                    token_instance  = Token(token)
+                    transfers = token_instance.get_all_transfers(x, x)
+                    for transaction in transfers:
+                        if transaction['args']['from'] in list_accounts or  transaction['args']['to'] in list_accounts:
+                            handle_event(transaction)
+                            walletnotify_shkeeper.delay(token, transaction['transactionHash'].hex())
+                            if (transaction['args']['from'] not in list_accounts and transaction['args']['to'] in list_accounts) and ((w3.eth.block_number - x) < 40):
+                                drain_account.delay(token, transaction['args']['to'])
+                
+                last_checked_block = x # TODO store this value in database
 
-                    logger.debug(f'Event received: {datetime.datetime.fromtimestamp(event["timeStamp"] / 1000)} {event["transactionId"]}')
-                    if apply_filter(event):
-                        save_event(event['transactionId'], message)
-                        symbol = FILTER[event['topicMap']['to']]
-                        await notify_shkeeper(symbol, event['transactionId'])
-                    else:
-                        logger.debug(f'Event ignored: {datetime.datetime.fromtimestamp(event["timeStamp"] / 1000)} {event["transactionId"]}')
+                pd = Settings.query.filter_by(name = "last_block").first()
+                pd.value = x
 
-                except Exception as e:
-                    logger.exception(f"Message processing exception: {message} {traceback.format_exc()}")
-                    continue
-        except websockets.ConnectionClosed:
-            logger.info('Server closed the connection, reconneting.')
-        except Exception as e:
-            logger.exception(f"Exception in event listener")
+                with app.app_context():
+                    db.session.add(pd)
+                    db.session.commit()
+                    db.session.close()
+    
+        time.sleep(check_interval)
 
 def events_listener():
-    asyncio.run(ws_main(), debug=True)
+
+    from app import create_app
+    app = create_app()
+    app.app_context().push()
+
+    if not Settings.query.filter_by(name = "last_block").first():
+        with app.app_context():
+            db.session.add(Settings(name = "last_block", 
+                                         value = w3.eth.block_number))
+            db.session.commit()
+            db.session.close() 
+            db.session.remove()
+            db.engine.dispose()
+    
+    pd = Settings.query.filter_by(name = "last_block").first()
+    last_checked_block = int(pd.value)
+    while True:
+        try:
+            log_loop(last_checked_block, int(config["CHECK_NEW_BLOCK_EVERY_SECONDS"]))
+        except Exception as e:
+            sleep_sec = 60
+            logger.exception(f"Exteption in main block scanner loop: {e}")
+            logger.warning(f"Waiting {sleep_sec} seconds before retry.")
+            time.sleep(sleep_sec)
+
+
