@@ -36,6 +36,7 @@ config = {
     'ACCOUNT_PASSWORD' : os.environ.get('ACCOUNT_PASSWORD', "shkeeper"), #Password for restoring account in metamask or others, should be str
     'REDIS_HOST': os.environ.get('REDIS_HOST', 'redis'),
     'ETHEREUM_HOST': os.environ.get('ETHEREUM_HOST', 'ethereum'),
+    'LAST_BLOCK_LOCKED': os.environ.get('LAST_BLOCK_LOCKED', 'TRUE'),
    
 }
 

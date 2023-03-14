@@ -85,7 +85,8 @@ def events_listener():
     app = create_app()
     app.app_context().push()
 
-    if not Settings.query.filter_by(name = "last_block").first():
+    if (not Settings.query.filter_by(name = "last_block").first()) and (config['LAST_BLOCK_LOCKED'].lower() != 'true'):
+        logger.warning(f"Changing last_block to a last block on a fullnode, because cannot get it in DB")
         with app.app_context():
             db.session.add(Settings(name = "last_block", 
                                          value = w3.eth.block_number))
@@ -101,7 +102,7 @@ def events_listener():
             log_loop(last_checked_block, int(config["CHECK_NEW_BLOCK_EVERY_SECONDS"]))
         except Exception as e:
             sleep_sec = 60
-            logger.exception(f"Exteption in main block scanner loop: {e}")
+            logger.exception(f"Exception in main block scanner loop: {e}")
             logger.warning(f"Waiting {sleep_sec} seconds before retry.")
             time.sleep(sleep_sec)
 
