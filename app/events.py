@@ -95,10 +95,10 @@ def events_listener():
             db.session.remove()
             db.engine.dispose()
     
-    pd = Settings.query.filter_by(name = "last_block").first()
-    last_checked_block = int(pd.value)
     while True:
         try:
+            pd = Settings.query.filter_by(name = "last_block").first()
+            last_checked_block = int(pd.value)
             log_loop(last_checked_block, int(config["CHECK_NEW_BLOCK_EVERY_SECONDS"]))
         except Exception as e:
             sleep_sec = 60
