@@ -37,8 +37,8 @@ config = {
     'REDIS_HOST': os.environ.get('REDIS_HOST', 'localhost'),
     'ETHEREUM_HOST': os.environ.get('ETHEREUM_HOST', 'ethereum'),
     'LAST_BLOCK_LOCKED': os.environ.get('LAST_BLOCK_LOCKED', 'TRUE'),
-   
 }
+
 
 def get_contract_address(symbol):
     return config["TOKENS"][config["CURRENT_ETH_NETWORK"]][symbol]["contract_address"]
