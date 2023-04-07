@@ -84,13 +84,7 @@ def payout(to, amount):
 @api.post('/task/<id>')
 def get_task(id):
     task = celery.AsyncResult(id)
+    if isinstance(task.result, Exception):
+        return {'status': task.status, 'result': str(task.result)}
     return {'status': task.status, 'result': task.result}
 
-# @api.post('/transfer-back')
-# def transfer_back():
-#     task = transfer_unused_fee.delay()
-#     return {'task_id': task.id}
-
-# @api.post('/balances/<type>')
-# def get_balances(type='tokens'):
-#     return {'accounts': get_non_empty_accounts(g.symbol, fltr=type)}

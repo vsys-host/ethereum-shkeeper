@@ -125,7 +125,7 @@ def make_payout_steps(payout_symbol, steps):
 
     for step in steps:
         logger.warning(f"make {step}")
-        token_instance.provider.geth.personal.unlock_account(token_instance.provider.toChecksumAddress(step['from'].lower()), config['ACCOUNT_PASSWORD'], 3)
+        token_instance.provider.geth.personal.unlock_account(token_instance.provider.toChecksumAddress(step['from'].lower()), config['ACCOUNT_PASSWORD'], int(config['UNLOCK_ACCOUNT_TIME']))
         #tx_hash = token_contract.functions.transfer('address_to', 100).transact({'from': 'address_from'})
         
         # keep in mind tokens with decimals 

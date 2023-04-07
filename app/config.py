@@ -37,6 +37,7 @@ config = {
     'REDIS_HOST': os.environ.get('REDIS_HOST', 'localhost'),
     'ETHEREUM_HOST': os.environ.get('ETHEREUM_HOST', 'ethereum'),
     'LAST_BLOCK_LOCKED': os.environ.get('LAST_BLOCK_LOCKED', 'TRUE'),
+    'UNLOCK_ACCOUNT_TIME': os.environ.get('UNLOCK_ACCOUNT_TIME', '60'),
 }
 
 

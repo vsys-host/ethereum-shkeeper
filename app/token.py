@@ -314,7 +314,7 @@ class Token:
                 gas_price = self.get_gas_price()
                 max_fee_per_gas = ( Decimal(self.provider.fromWei(gas_price, "ether")) + Decimal(fee) ) #* Decimal(config['MULTIPLIER'])
 
-                self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(payout_account.lower()), config['ACCOUNT_PASSWORD'], 3)      
+                self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(payout_account.lower()), config['ACCOUNT_PASSWORD'], int(config['UNLOCK_ACCOUNT_TIME']))      
                 txid = self.contract.functions.transfer(self.provider.toChecksumAddress(payout['dest']),
                    int((Decimal(payout['amount']) * 10** (self.contract.functions.decimals().call())))).transact({'from': self.provider.toChecksumAddress(payout_account.lower()), 
                                                                                                           'gas': gas, 
@@ -370,7 +370,7 @@ class Token:
                 logger.warning("send coins to token account", txid.hex())
                 time.sleep(int(config['SLEEP_AFTER_SEEDING']))
             # Send tokens to the fee account            
-            self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(account.lower()), config['ACCOUNT_PASSWORD'], 3)      
+            self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(account.lower()), config['ACCOUNT_PASSWORD'], int(config['UNLOCK_ACCOUNT_TIME']))    
             txid = self.contract.functions.transfer(self.provider.toChecksumAddress(destination),
                    int((Decimal(can_send) * 10** (self.contract.functions.decimals().call())))).transact({'from': self.provider.toChecksumAddress(account.lower()), 
                                                                                                           'gas': gas, 
