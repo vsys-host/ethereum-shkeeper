@@ -100,7 +100,11 @@ def get_transaction(txid):
                 category = 'send'
             else:
                 return {'status': 'error', 'msg': 'txid is not related to any known address'}
-            amount = Decimal(transaction['args']['tokens']) / Decimal(10** (token_instance.contract.functions.decimals().call()))
+            transfer_abi_args = token_instance.contract._find_matching_event_abi('Transfer')['inputs']
+            for argument in transfer_abi_args:
+                if argument['type'] == 'uint256':
+                    amount_name = argument['name']
+            amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
             confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
         except Exception as e:
             # return e 
