@@ -75,10 +75,16 @@ class Coin:
                 raise Exception(f"Address {payout['dest']} is not valid ethereum address")           
         
         multiplier = Decimal(config['MULTIPLIER']) # make max fee per gas as *MULTIPLIER of base price + fee
-        transaction = {"from": self.provider.toChecksumAddress(self.provider.geth.personal.list_accounts()[0]),
-                                "to": self.provider.toChecksumAddress(payout['dest']), 
-                                "value": self.provider.toWei(0, "ether")}  # transaction example for counting gas
+        max_payout_amount = Decimal(0)
+        for payout in payout_list:
+            if payout['amount'] > max_payout_amount:
+                max_payout_amount = payout['amount']
+        transaction = {"from": self.provider.toChecksumAddress(self.get_fee_deposit_account()),
+                                "to": self.provider.toChecksumAddress(payout_list[0]['dest']), 
+                                "value": self.provider.toWei(max_payout_amount, "ether")}  # transaction example for counting gas
+        payout_multiplier = Decimal(config['PAYOUT_MULTIPLIER'])
         gas_count = self.provider.eth.estimate_gas(transaction)
+        gas_count = int(gas_count * payout_multiplier)
         gas_price = self.provider.eth.gasPrice
         max_fee_per_gas = ( Decimal(self.provider.fromWei(gas_price, "ether")) + Decimal(fee) ) * multiplier
         # Check if enouth funds for multipayout on account
@@ -91,6 +97,12 @@ class Coin:
             raise Exception(f"Have not enough crypto on fee account, need {should_pay} have {have_crypto}")
         else:
             for payout in payout_list:
+                test_transaction = {"from": self.provider.toChecksumAddress(self.get_fee_deposit_account()),
+                                    "to": self.provider.toChecksumAddress(payout['dest']),
+                                    "value":  self.provider.toWei(payout['amount'], "ether")}  # transaction example for counting gas
+
+                gas_count = self.provider.eth.estimate_gas(test_transaction)
+                gas_count = int(gas_count * payout_multiplier)       
                 trans =  self.provider.geth.personal.send_transaction({"from":  self.provider.toChecksumAddress(self.get_fee_deposit_account()), 
                                                                     "to":  self.provider.toChecksumAddress(payout['dest']),
                                                                     "value":  self.provider.toHex(self.provider.toWei(payout['amount'], "ether")),

@@ -30,6 +30,7 @@ config = {
     'SHKEEPER_KEY': os.environ.get('SHKEEPER_BACKEND_KEY', 'shkeeper'),
     'SHKEEPER_HOST': os.environ.get('SHKEEPER_HOST', 'shkeeper:5000'),
     'MULTIPLIER': os.environ.get('MULTIPLIER', '1.5'),#should be >1,
+    'PAYOUT_MULTIPLIER': os.environ.get('PAYOUT_MULTIPLIER', '2'),#should be >1,
     'PRICE_MULTIPLIER' : os.environ.get('PRICE_MULTIPLIER', '0.9'), #should be <1, used in payout in calc maxFeePerGas to avoid base price changing
     'MAX_PRIORITY_FEE': os.environ.get('MAX_PRIORITY_FEE', '0.00000000000017'), #in ETH
     'SLEEP_AFTER_SEEDING': os.environ.get('SLEEP_AFTER_SEEDING', 60), #in sec
