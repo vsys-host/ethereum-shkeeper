@@ -203,11 +203,14 @@ class Token:
         return normalized_balance
 
     def get_token_transaction(self, txid):
+        transaction_arr = []
         block_number = self.provider.eth.get_transaction(txid)['blockNumber']
         all_transfers = self.get_all_transfers(block_number, block_number)
         for transaction in all_transfers:
             if transaction['transactionHash'].hex() == txid:
-                return transaction
+                transaction_arr.append(transaction)
+        return transaction_arr
+        
 
     def get_token_balance(self):
         if not Accounts.query.filter_by(crypto = self.symbol).all():

@@ -80,44 +80,49 @@ def get_transaction(txid):
             amount = w3.fromWei(transaction["value"], "ether") 
             confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
         except Exception as e:
-            # return e  
             return {f'status': 'error', 'msg': {e}}
     elif g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
         token_instance  = Token(g.symbol)
         try:
-            transaction = token_instance.get_token_transaction(txid)
-            if transaction is None:
-                return {'status': 'error', 'msg': 'txid is not found for this crypto '}
-            logger.warning(transaction)
-            if (transaction['args']['to'] in list_accounts) and (transaction['args']['from'] in list_accounts):
-                address = transaction['args']["from"]
-                category = 'internal'
-            elif transaction['args']['to'] in list_accounts:
-                address = transaction['args']["to"]
-                category = 'receive'
-            elif transaction['args']['from'] in list_accounts:                
-                address = transaction['args']["from"]
-                category = 'send'
-            else:
-                return {'status': 'error', 'msg': 'txid is not related to any known address'}
             transfer_abi_args = token_instance.contract._find_matching_event_abi('Transfer')['inputs']
             for argument in transfer_abi_args:
                 if argument['type'] == 'uint256':
                     amount_name = argument['name']
-            amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
-            confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+            transactions_array = token_instance.get_token_transaction(txid)
+            if len(transactions_array) == 0:
+                logger.warning(f"There is not any token {g.symbol} transaction with transactionID {txid}")
+                return {'status': 'error', 'msg': 'txid is not found for this crypto '}
+            logger.warning(transactions_array)
+            transaction_found = False
+            for transaction in transactions_array:
+                if (transaction['args']['to'] in list_accounts) and (transaction['args']['from'] in list_accounts):
+                    address = transaction['args']["from"]
+                    category = 'internal'
+                    amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
+                    confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+                    transaction_found = True
+                elif transaction['args']['to'] in list_accounts:
+                    address = transaction['args']["to"]
+                    category = 'receive'
+                    amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
+                    confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+                    transaction_found = True
+                elif transaction['args']['from'] in list_accounts:                
+                    address = transaction['args']["from"]
+                    category = 'send'
+                    amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
+                    confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+                    transaction_found = True
+            if not transaction_found:
+                logger.warning(f"txid {txid} is not related to any known address for {g.symbol}")
+                return {'status': 'error', 'msg': 'txid is not related to any known address'}        
         except Exception as e:
-            # return e 
             raise e 
-            # return {f'status': 'error', 'msg': "wefwefe"}      
-        
     else:
-
         return {'status': 'error', 'msg': 'Currency is not defined in config'}
-
-    # logger.warning({'address': address, 'amount': Decimal(amount), 'confirmations': confirmations, 'category': category})
-
+    logger.warning(f"returning address {address}, amount {amount}, confirmations {confirmations}, category {category}")
     return {'address': address, 'amount': Decimal(amount), 'confirmations': confirmations, 'category': category}
+
 
 @api.post('/dump')
 def dump():
