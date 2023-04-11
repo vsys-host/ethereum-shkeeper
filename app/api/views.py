@@ -123,11 +123,11 @@ def get_transaction(txid):
 def dump():
     coin_inst = Coin("ETH")
     fee_address = coin_inst.get_fee_deposit_account()
-    r = requests.get('http://'+config["ETHEREUM_HOST"]+':8081',  headers={'X-Shkeeper-Backend-Key': config["SHKEEPER_BACKEND_KEY"]})
+    r = requests.get('http://'+config["ETHEREUM_HOST"]+':8081',  headers={'X-Shkeeper-Backend-Key': config["SHKEEPER_KEY"]})
     key_list = r.text.split("href=\"")
     for key in key_list:
         if (key.find(fee_address.lower()[2:])) != -1:
-            fee_key=requests.get('http://'+config["ETHEREUM_HOST"]+':8081'+str(key.split("\"")[0]),  headers={'X-Shkeeper-Backend-Key': config["SHKEEPER_BACKEND_KEY"]})
+            fee_key=requests.get('http://'+config["ETHEREUM_HOST"]+':8081'+str(key.split("\"")[0]),  headers={'X-Shkeeper-Backend-Key': config["SHKEEPER_KEY"]})
     return fee_key
 
 @api.post('/fee-deposit-account')
