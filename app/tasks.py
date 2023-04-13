@@ -11,7 +11,7 @@ from celery.utils.log import get_task_logger
 import requests as rq
 
 from . import celery
-from .config import config
+from .config import config, get_min_token_transfer_threshold
 from .models import Accounts, db
 from .token import Token, Coin
 #from .payout_strategy import get_payout_steps, seed_fees, make_payout_steps, payout_eth, multipayout_eth
@@ -123,18 +123,17 @@ def refresh_balances():
                             db.session.commit() 
                             db.session.close()  
 
-                        if normalized_balance > 0:
+                        if normalized_balance >= decimal.Decimal(get_min_token_transfer_threshold(token)):
                             have_tokens = copy.deepcopy(token)
                         
                 if have_tokens in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
                     drain_account.delay(have_tokens, account) 
                 else:
-                    if acc_balance > 0:
+                    if acc_balance >= decimal.Decimal(config['MIN_TRANSFER_THRESHOLD']):
                         drain_account.delay("ETH", account)        
         
                 updated = updated + 1                
-    
-        
+       
                 with app.app_context():
                     db.session.add(pd)
                     db.session.commit()

@@ -5,7 +5,7 @@ import time
 
 
 from .logging import logger
-from .config import config, get_contract_abi, get_contract_address
+from .config import config, get_contract_abi, get_contract_address, get_min_token_transfer_threshold
 from .models import Accounts, Settings, db
 
 class Coin:
@@ -142,6 +142,7 @@ class Coin:
             raise Exception(f"Address {account} is not valid ethereum address")   
         
         if account == destination:
+            logger.warning(f"Fee-deposit account, skip")
             return False     
         
         multiplier = Decimal(config['MULTIPLIER']) # make max fee per gas as *MULTIPLIER of base price + fee
@@ -153,8 +154,13 @@ class Coin:
         try:
             account_balance =  self.provider.fromWei( self.provider.eth.get_balance(account), "ether")
         except Exception as e:
-            raise Exception(f"Get error: {e}, when trying get balance")  
-                         
+            raise Exception(f"Get error: {e}, when trying get balance")
+
+        if Decimal(config['MIN_TRANSFER_THRESHOLD']) > account_balance :
+            logger.warning(f"Balance {account_balance} is lower than MIN_TRANSFER_THRESHOLD {Decimal(config['MIN_TRANSFER_THRESHOLD'])}, skip draining ")             
+            #raise Exception(f"Cannot send funds, not enough for paying fee")  
+            return False
+
         can_send = account_balance - ( gas_count * max_fee_per_gas )
 
         if can_send <= 0:
@@ -380,9 +386,16 @@ class Token:
         if not self.check_eth_address(account):
             raise Exception(f"Address {account} is not valid ethereum address")          
         if account == destination:
-            return False    
+            logger.warning(f"Fee-deposit account, skip")
+            return False  
 
-        can_send = self.get_account_balance_from_fullnode(account)                
+        can_send = self.get_account_balance_from_fullnode(account)  
+
+        if Decimal(get_min_token_transfer_threshold(self.symbol)) > can_send :
+            logger.warning(f"Balance {can_send} is lower than min_token_transfer_threshold {Decimal(get_min_token_transfer_threshold(self.symbol))}, skip draining ")             
+            #raise Exception(f"Cannot send funds, not enough for paying fee")  
+            return False
+
         if can_send <= 0:
             return False
         else:            
