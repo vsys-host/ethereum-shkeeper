@@ -44,7 +44,12 @@ class Coin:
             db.engine.dispose() 
 
     def get_fee_deposit_account(self):
-        if not Accounts.query.filter_by(type = "fee_deposit").first():
+        try:
+            pd = Accounts.query.filter_by(type = "fee_deposit").first()
+        except:
+            db.session.rollback()
+            raise Exception(f"There was exception during query to the database, try again later")
+        if not pd:
             self.set_fee_deposit_account()
         pd = Accounts.query.filter_by(type = "fee_deposit").first()
         return pd.address
@@ -56,10 +61,14 @@ class Coin:
 
     def get_all_balances(self):
         balances = {}
-        if not Accounts.query.filter_by(crypto = self.symbol,).all():
+        try:
+            pd = Accounts.query.filter_by(crypto = self.symbol,).all()
+        except:
+            db.session.rollback()
+            raise Exception(f"There was exception during query to the database, try again later")
+        if not pd:
             raise Exception(f"There is not any account with {self.symbol} crypto in database")
         else:
-            pd = Accounts.query.filter_by(crypto = self.symbol,).all()
             for account in pd:
                 if account.type != "fee_deposit":
                     balances.update({account.address: Decimal(account.amount)})
@@ -202,11 +211,15 @@ class Token:
         price = eth_gas_count  * max_fee_per_gas * Decimal(config['MULTIPLIER'])
         return price
 
-    def get_account_balance(self, address):   
-        if not Accounts.query.filter_by(crypto = self.symbol, address = address).first():
+    def get_account_balance(self, address): 
+        try:
+            pd = Accounts.query.filter_by(crypto = self.symbol, address = address).first()
+        except:
+            db.session.rollback()
+            raise Exception(f"There was exception during query to the database, try again later") 
+        if not pd:  
             raise Exception(f"There is no account {address} related with {self.symbol} crypto in database") 
         else:
-            pd = Accounts.query.filter_by(crypto = self.symbol, address = address).first()
             return pd.amount
         
     def get_account_balance_from_fullnode(self, address):
@@ -225,20 +238,28 @@ class Token:
         
 
     def get_token_balance(self):
-        if not Accounts.query.filter_by(crypto = self.symbol).all():
+        try:
+            pd = Accounts.query.filter_by(crypto = self.symbol).all()
+        except:
+            db.session.rollback()
+            raise Exception(f"There was exception during query to the database, try again later")
+        if not pd:
             return Decimal("0")
         else:
-            pd = Accounts.query.filter_by(crypto = self.symbol).all()
             balance = Decimal("0")
             for account in pd:
                 balance = balance + account.amount
             return balance
 
     def get_accounts_with_tokens(self):
-        if not Accounts.query.filter_by(crypto = self.symbol).all():
+        try:
+            pd = Accounts.query.filter_by(crypto = self.symbol).all()
+        except:
+            db.session.rollback()
+            raise Exception(f"There was exception during query to the database, try again later")
+        if not pd:
             raise Exception(f"There is no accounts with {self.symbol} crypto") 
         else:
-            pd = Accounts.query.filter_by(crypto = self.symbol).all()
             list_accounts = []
             for account in pd:
                 if account.amount > 0:
@@ -276,7 +297,12 @@ class Token:
             db.engine.dispose() 
 
     def get_fee_deposit_account(self):
-        if not Accounts.query.filter_by(type = "fee_deposit").first():
+        try:
+            pd = Accounts.query.filter_by(type = "fee_deposit").first()
+        except:
+            db.session.rollback()
+            raise Exception(f"There was exception during query to the database, try again later")
+        if not pd:
             self.set_fee_deposit_account()
         pd = Accounts.query.filter_by(type = "fee_deposit").first()
         return pd.address

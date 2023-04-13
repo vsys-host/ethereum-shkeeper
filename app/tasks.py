@@ -77,7 +77,12 @@ def refresh_balances():
         
         list_acccounts = w3.geth.personal.list_accounts()
         for account in list_acccounts:
-            if not Accounts.query.filter_by(address = account).first():
+            try:
+                pd = Accounts.query.filter_by(address = account).first()
+            except:
+                db.session.rollback()
+                raise Exception(f"There was exception during query to the database, try again later")
+            if not pd:
                 with app.app_context():
                     db.session.add(Accounts(address = account, 
                                              crypto = "ETH",
