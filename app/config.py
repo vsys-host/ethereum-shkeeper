@@ -47,7 +47,7 @@ config = {
     'ETHEREUM_HOST': os.environ.get('ETHEREUM_HOST', 'ethereum'),
     'LAST_BLOCK_LOCKED': os.environ.get('LAST_BLOCK_LOCKED', 'TRUE'),
     'UNLOCK_ACCOUNT_TIME': os.environ.get('UNLOCK_ACCOUNT_TIME', '60'),
-    'MIN_TRANSFER_THRESHOLD': Decimal(os.environ.get('MIN_TRANSFER_THRESHOLD', '0.0001')),
+    'MIN_TRANSFER_THRESHOLD': Decimal(os.environ.get('MIN_TRANSFER_THRESHOLD', '0.001')),
     'MIN_TOKEN_TRANSFER_THRESHOLD': Decimal(os.environ.get('MIN_TOKEN_TRANSFER_THRESHOLD', '0.5')), 
 
 }

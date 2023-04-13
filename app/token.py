@@ -406,7 +406,7 @@ class Token:
             max_fee_per_gas = ( Decimal(self.provider.fromWei(gas_price, "ether")) + Decimal(fee) ) #* Decimal(config['MULTIPLIER'])
             need_crypto = gas * max_fee_per_gas
             # if there is not enough ETH for sending tokens
-            logger.warning(f'gas: {gas}\n gas_price: {gas_price}\n need_crypto: {need_crypto}\n balance ', Decimal(self.provider.fromWei(self.provider.eth.get_balance(account), "ether"))  )
+            logger.warning(f'gas: {str(gas)}\n gas_price: {str(gas_price)}\n need_crypto: {str(need_crypto)}\n balance: {str(Decimal(self.provider.fromWei(self.provider.eth.get_balance(account), "ether"))  )}')
             if Decimal(self.provider.fromWei(self.provider.eth.get_balance(account), "ether")) < need_crypto:            
                 need_to_send = need_crypto - self.provider.fromWei(self.provider.eth.get_balance(account), "ether") 
                 transaction = {"from": self.provider.toChecksumAddress(self.get_fee_deposit_account()),
@@ -421,7 +421,7 @@ class Token:
                                                                         "gas": self.provider.toHex(gas_coin_count),
                                                                         "maxFeePerGas":  self.provider.toHex(self.provider.toWei(max_fee_per_gas_coin, 'ether')),
                                                                         "maxPriorityFeePerGas": self.provider.toHex(self.provider.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD'])
-                logger.warning("send coins to token account", txid.hex())
+                logger.warning(f'send coins to token account: {str(txid.hex())}')
                 time.sleep(int(config['SLEEP_AFTER_SEEDING']))
             # Send tokens to the fee account            
             self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(account.lower()), config['ACCOUNT_PASSWORD'], int(config['UNLOCK_ACCOUNT_TIME']))    
