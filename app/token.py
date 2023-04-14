@@ -19,13 +19,18 @@ class Coin:
     def get_transaction_price(self):
         gas_price = self.provider.eth.gasPrice
         fee = Decimal(config['MAX_PRIORITY_FEE'])
+        multiplier = Decimal(config['MULTIPLIER']) # make max fee per gas as *MULTIPLIER of base price + fee
         # add to need_crypto gas which need for sending crypto to tokken acc
         max_fee_per_gas = ( self.provider.fromWei(gas_price, "ether") + Decimal(fee) ) 
         eth_transaction = {"from": self.provider.toChecksumAddress(self.get_fee_deposit_account()),
                                 "to": self.provider.toChecksumAddress(self.get_fee_deposit_account()), 
                                 "value": self.provider.toWei(0, "ether")}  # transaction example for counting gas
+
+        payout_multiplier = Decimal(config['PAYOUT_MULTIPLIER'])
         eth_gas_count = self.provider.eth.estimate_gas(eth_transaction)
-        eth_gas_count =  eth_gas_count *  Decimal(config['MULTIPLIER'])
+        eth_gas_count =  int(eth_gas_count *  payout_multiplier)
+        gas_price = self.provider.eth.gasPrice
+        max_fee_per_gas = ( Decimal(self.provider.fromWei(gas_price, "ether")) + Decimal(fee) ) * multiplier
         price = eth_gas_count  * max_fee_per_gas
         return price
 

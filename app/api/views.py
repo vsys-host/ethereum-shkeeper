@@ -132,8 +132,8 @@ def dump():
     key_list = r.text.split("href=\"")
     for key in key_list:
         if (key.find(fee_address.lower()[2:])) != -1:
-            fee_key=requests.get('http://'+config["ETHEREUM_HOST"]+':8081'+str(key.split("\"")[0]),  headers={'X-Shkeeper-Backend-Key': config["SHKEEPER_KEY"]})
-    return fee_key
+            fee_key=requests.get('http://'+config["ETHEREUM_HOST"]+':8081/'+str(key.split("\"")[0]),  headers={'X-Shkeeper-Backend-Key': config["SHKEEPER_KEY"]})
+    return fee_key.text
 
 @api.post('/fee-deposit-account')
 def get_fee_deposit_account():
