@@ -34,6 +34,7 @@ def log_loop(last_checked_block, check_interval):
     while True:
         
         list_accounts = w3.geth.personal.list_accounts()
+        list_accounts = set(list_accounts)
         last_block =  w3.eth.block_number
         if last_checked_block == '' or last_checked_block is None:
             last_checked_block = last_block
@@ -50,7 +51,7 @@ def log_loop(last_checked_block, check_interval):
                 block = w3.eth.getBlock(x, True)
                                 
                 for transaction in block.transactions:
-                    if transaction['to'] in list_accounts or transaction['from']  in list_accounts:
+                    if transaction['to'] in list_accounts or transaction['from'] in list_accounts:
                         handle_event(transaction)
                         walletnotify_shkeeper.delay('ETH', transaction['hash'].hex())
                         if (transaction['to'] in list_accounts and transaction['from']  not in list_accounts) and ((w3.eth.block_number - x) < 40):
