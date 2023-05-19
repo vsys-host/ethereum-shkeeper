@@ -7,9 +7,10 @@ import time
 from .logging import logger
 from .config import config, get_contract_abi, get_contract_address, get_min_token_transfer_threshold
 from .models import Accounts, Settings, db
+from .unlock_acc import get_account_password
 
 class Coin:
-    w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+    w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
 
     def __init__(self, symbol, init=True):
         self.symbol = symbol        
@@ -36,7 +37,7 @@ class Coin:
 
     def set_fee_deposit_account(self):
         coin_instance = Coin("ETH")
-        new_address = coin_instance.provider.geth.personal.new_account(config['ACCOUNT_PASSWORD'])
+        new_address = coin_instance.provider.geth.personal.new_account(get_account_password())
         crypto_str = "ETH"
         with app.app_context():
             db.session.add(Accounts(address = new_address, 
@@ -122,7 +123,7 @@ class Coin:
                                                                     "value":  self.provider.toHex(self.provider.toWei(payout['amount'], "ether")),
                                                                     "gas":  self.provider.toHex(gas_count),
                                                                     "maxFeePerGas":   self.provider.toHex(self.provider.toWei(max_fee_per_gas, 'ether')),
-                                                                    "maxPriorityFeePerGas":  self.provider.toHex( self.provider.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD'])
+                                                                    "maxPriorityFeePerGas":  self.provider.toHex( self.provider.toWei(fee, "ether"))}, get_account_password())
         
             
                 payout_results.append({
@@ -178,7 +179,7 @@ class Coin:
                                                                     "value":  self.provider.toHex(self.provider.toWei(can_send, "ether")),
                                                                     "gas":  self.provider.toHex(gas_count),
                                                                     "maxFeePerGas":   self.provider.toHex(self.provider.toWei(max_fee_per_gas, 'ether')),
-                                                                    "maxPriorityFeePerGas":  self.provider.toHex( self.provider.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD'])
+                                                                    "maxPriorityFeePerGas":  self.provider.toHex( self.provider.toWei(fee, "ether"))}, get_account_password())
         
             
             drain_results.append({
@@ -192,7 +193,7 @@ class Coin:
 
 
 class Token:
-    w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+    w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
 
     def __init__(self, symbol, init=True):
         self.symbol = symbol        
@@ -295,7 +296,7 @@ class Token:
 
     def set_fee_deposit_account(self):
         coin_instance = Coin("ETH")
-        new_address = coin_instance.provider.geth.personal.new_account(config['ACCOUNT_PASSWORD'])
+        new_address = coin_instance.provider.geth.personal.new_account(get_account_password())
         crypto_str = "ETH"
         with app.app_context():
             db.session.add(Accounts(address = new_address, 
@@ -366,7 +367,7 @@ class Token:
                 gas_price = self.get_gas_price()
                 max_fee_per_gas = ( Decimal(self.provider.fromWei(gas_price, "ether")) + Decimal(fee) ) #* Decimal(config['MULTIPLIER'])
 
-                self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(payout_account.lower()), config['ACCOUNT_PASSWORD'], int(config['UNLOCK_ACCOUNT_TIME']))      
+                self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(payout_account.lower()), get_account_password(), int(config['UNLOCK_ACCOUNT_TIME']))      
                 txid = self.contract.functions.transfer(self.provider.toChecksumAddress(payout['dest']),
                    int((Decimal(payout['amount']) * 10** (self.contract.functions.decimals().call())))).transact({'from': self.provider.toChecksumAddress(payout_account.lower()), 
                                                                                                           'gas': gas, 
@@ -429,7 +430,7 @@ class Token:
                 logger.warning(f'send coins to token account: {str(txid.hex())}')
                 time.sleep(int(config['SLEEP_AFTER_SEEDING']))
             # Send tokens to the fee account            
-            self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(account.lower()), config['ACCOUNT_PASSWORD'], int(config['UNLOCK_ACCOUNT_TIME']))    
+            self.provider.geth.personal.unlock_account(self.provider.toChecksumAddress(account.lower()), get_account_password(), int(config['UNLOCK_ACCOUNT_TIME']))    
             txid = self.contract.functions.transfer(self.provider.toChecksumAddress(destination),
                    int((Decimal(can_send) * 10** (self.contract.functions.decimals().call())))).transact({'from': self.provider.toChecksumAddress(account.lower()), 
                                                                                                           'gas': gas, 

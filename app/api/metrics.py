@@ -27,7 +27,7 @@ def get_latest_release(name):
     return info
 
 def get_all_metrics():
-    w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+    w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
 
     if w3.isConnected:
         response = {}

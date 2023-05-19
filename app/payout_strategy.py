@@ -7,8 +7,9 @@ import copy
 from .config import config
 from .token import Token, Coin
 from .logging import logger
+from .unlock_acc import get_account_password
 
-w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
 
 
 
@@ -106,7 +107,7 @@ def seed_fees(payout_symbol, account_dict, fee):
                                                                 "value": token_instance.provider.toHex(token_instance.provider.toWei(account_dict[account]['need_crypto'], "ether")),
                                                                 "gas": token_instance.provider.toHex(gas_count),
                                                                 "maxFeePerGas":  token_instance.provider.toHex(max_fee_per_gas),
-                                                                "maxPriorityFeePerGas": token_instance.provider.toHex(token_instance.provider.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD']))
+                                                                "maxPriorityFeePerGas": token_instance.provider.toHex(token_instance.provider.toWei(fee, "ether"))}, get_account_password()))
     logger.warning(transaction_list)                                     
     return transaction_list
 
@@ -125,7 +126,7 @@ def make_payout_steps(payout_symbol, steps):
 
     for step in steps:
         logger.warning(f"make {step}")
-        token_instance.provider.geth.personal.unlock_account(token_instance.provider.toChecksumAddress(step['from'].lower()), config['ACCOUNT_PASSWORD'], int(config['UNLOCK_ACCOUNT_TIME']))
+        token_instance.provider.geth.personal.unlock_account(token_instance.provider.toChecksumAddress(step['from'].lower()), get_account_password(), int(config['UNLOCK_ACCOUNT_TIME']))
         #tx_hash = token_contract.functions.transfer('address_to', 100).transact({'from': 'address_from'})
         
         # keep in mind tokens with decimals 
@@ -239,7 +240,7 @@ def payout_eth(destination, amount, fee,):
                                                                            "value": w3.toHex(w3.toWei(sending_amount, "ether")),
                                                                            "gas": w3.toHex(gas_count),
                                                                            "maxFeePerGas":  w3.toHex(max_fee_per_gas),
-                                                                           "maxPriorityFeePerGas": w3.toHex(w3.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD'])
+                                                                           "maxPriorityFeePerGas": w3.toHex(w3.toWei(fee, "ether"))}, get_account_password())
         # trans = trans.hex()
         payout_transactions.append(trans.hex())
     payout_results.append({
@@ -355,7 +356,7 @@ def multipayout_eth(payout_list, fee):
                                                                                "value": w3.toHex(w3.toWei(sending_amount, "ether")),
                                                                                "gas": w3.toHex(gas_count),
                                                                                "maxFeePerGas":  w3.toHex(max_fee_per_gas),
-                                                                               "maxPriorityFeePerGas": w3.toHex(w3.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD'])
+                                                                               "maxPriorityFeePerGas": w3.toHex(w3.toWei(fee, "ether"))}, get_account_password())
             # trans = trans.hex()
             payout_buf_dict[receiver]['txids'].append(trans.hex())
             payout_buf_dict[receiver]['sent'].append(Decimal(sending_amount))
@@ -398,7 +399,7 @@ def drain_account(account, destination):
                                                                            "value": w3.toHex(w3.toWei(can_send, "ether")),
                                                                            "gas": w3.toHex(gas_count),
                                                                            "maxFeePerGas":  w3.toHex(max_fee_per_gas),
-                                                                           "maxPriorityFeePerGas": w3.toHex(w3.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD'])
+                                                                           "maxPriorityFeePerGas": w3.toHex(w3.toWei(fee, "ether"))}, get_account_password())
 
     drain_results.append({
             "dest": destination,

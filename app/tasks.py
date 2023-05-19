@@ -19,7 +19,7 @@ from .utils import skip_if_running
 
 logger = get_task_logger(__name__)
 
-w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
 
 @celery.task()
 def make_multipayout(symbol, payout_list, fee):

@@ -4,6 +4,7 @@ from decimal import Decimal
 config = {
 
     'FULLNODE_URL': os.environ.get('FULLNODE_URL', 'http://ethereum:8545'),
+    'FULLNODE_TIMEOUT': os.environ.get('FULLNODE_TIMEOUT', '60'),
     'CHECK_NEW_BLOCK_EVERY_SECONDS': os.environ.get('CHECK_NEW_BLOCK_EVERY_SECONDS',2),
     'CURRENT_ETH_NETWORK': os.environ.get('CURRENT_ETH_NETWORK','goerli'),
     'TOKENS': {
@@ -49,6 +50,8 @@ config = {
     'UNLOCK_ACCOUNT_TIME': os.environ.get('UNLOCK_ACCOUNT_TIME', '60'),
     'MIN_TRANSFER_THRESHOLD': Decimal(os.environ.get('MIN_TRANSFER_THRESHOLD', '0.001')),
     'MIN_TOKEN_TRANSFER_THRESHOLD': Decimal(os.environ.get('MIN_TOKEN_TRANSFER_THRESHOLD', '0.5')), 
+    
+
 
 }
 

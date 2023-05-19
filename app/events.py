@@ -18,8 +18,7 @@ from .token import Token
 
 
 
-# instantiate Web3 instance
-w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
 
 def handle_event(transaction):        
     logger.info(f'new transaction: {transaction!r}')

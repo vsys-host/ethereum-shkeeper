@@ -34,7 +34,7 @@ def calc_tx_fee(amount):
 
 @api.post('/multipayout')
 def multipayout():
-    w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+    w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
     
     try:
         payout_list = request.get_json(force=True)

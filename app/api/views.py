@@ -13,8 +13,9 @@ from ..token import Token, Coin
 from ..logging import logger
 from . import api
 from app import create_app
+from ..unlock_acc import get_account_password
 
-w3 = Web3(HTTPProvider(config["FULLNODE_URL"]))
+w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
 
 
 app = create_app()
@@ -22,7 +23,7 @@ app.app_context().push()
 
 @api.post("/generate-address")
 def generate_new_address():    
-    new_address = w3.geth.personal.new_account(config['ACCOUNT_PASSWORD'])
+    new_address = w3.geth.personal.new_account(get_account_password())
     crypto_str = str(g.symbol)
     with app.app_context():
         db.session.add(Accounts(address = new_address, 
