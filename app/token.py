@@ -87,8 +87,14 @@ class Coin:
     
         for payout in payout_list:
             if not self.provider.isAddress(payout['dest']):
-                raise Exception(f"Address {payout['dest']} is not valid ethereum address")           
-        
+                raise Exception(f"Address {payout['dest']} is not valid ethereum address") 
+
+        for payout in payout_list:
+            if not self.provider.isChecksumAddress(payout['dest']):
+                logger.warning(f"Provided address {payout['dest']} is not checksum address, converting to checksum address")
+                payout['dest'] = self.provider.toChecksumAddress(payout['dest'])
+                logger.warning(f"Changed to {payout['dest']} which is checksum address")
+         
         multiplier = Decimal(config['MULTIPLIER']) # make max fee per gas as *MULTIPLIER of base price + fee
         max_payout_amount = Decimal(0)
         for payout in payout_list:
@@ -145,7 +151,12 @@ class Coin:
             raise Exception(f"Address {destination} is not valid ethereum address") 
     
         if not self.provider.isAddress(account):
-            raise Exception(f"Address {account} is not valid ethereum address")   
+            raise Exception(f"Address {account} is not valid ethereum address")  
+
+        if not self.provider.isChecksumAddress(destination):
+                logger.warning(f"Provided address {destination} is not checksum address, converting to checksum address")
+                destination = self.provider.toChecksumAddress(destination)
+                logger.warning(f"Changed to {destination} which is checksum address") 
         
         if account == destination:
             logger.warning(f"Fee-deposit account, skip")
@@ -343,6 +354,12 @@ class Token:
             if not self.provider.isAddress(payout['dest']):
                 raise Exception(f"Address {payout['dest']} is not valid ethereum address") 
             need_tokens = need_tokens + payout['amount']
+
+        for payout in payout_list:
+            if not self.provider.isChecksumAddress(payout['dest']):
+                logger.warning(f"Provided address {payout['dest']} is not checksum address, converting to checksum address")
+                payout['dest'] = self.provider.toChecksumAddress(payout['dest'])
+                logger.warning(f"Changed to {payout['dest']} which is checksum address")
         
         have_tokens = self.get_fee_deposit_token_balance()
         if need_tokens > have_tokens:
@@ -390,7 +407,11 @@ class Token:
         if not self.check_eth_address(destination):
             raise Exception(f"Address {destination} is not valid ethereum address")     
         if not self.check_eth_address(account):
-            raise Exception(f"Address {account} is not valid ethereum address")          
+            raise Exception(f"Address {account} is not valid ethereum address")  
+        if not self.provider.isChecksumAddress(destination):
+                logger.warning(f"Provided address {destination} is not checksum address, converting to checksum address")
+                destination = self.provider.toChecksumAddress(destination)
+                logger.warning(f"Changed to {destination} which is checksum address")         
         if account == destination:
             logger.warning(f"Fee-deposit account, skip")
             return False  
