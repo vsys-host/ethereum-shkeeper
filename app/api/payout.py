@@ -50,7 +50,7 @@ def multipayout():
         except Exception as e:
             raise Exception(f"Bad destination address in {transfer}: {e}")
         if not is_address:
-            raise Exception(f"Bad destination address in {transfer}: {e}")
+            raise Exception(f"Bad destination address in {transfer}")
         try:
             transfer['amount'] = Decimal(transfer['amount'])
         except Exception as e:
