@@ -149,6 +149,7 @@ def refresh_balances():
 @celery.task(bind=True)
 @skip_if_running
 def drain_account(self, symbol, account):
+    logger.warning(f"Start draining from account {account} crypto {symbol}")
     # return False
     if symbol == "ETH":
         inst = Coin(symbol)
