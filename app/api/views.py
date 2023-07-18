@@ -140,5 +140,12 @@ def dump():
 def get_fee_deposit_account():
     token_instance = Token(g.symbol)
     return {'account': token_instance.get_fee_deposit_account(), 
-            'balance': token_instance.get_fee_deposit_account_balance()}  
+            'balance': token_instance.get_fee_deposit_account_balance()}
+
+@api.post('/get_all_addresses')
+def get_all_addresses():
+    all_addresses_list = w3.geth.personal.list_accounts()    
+    return all_addresses_list
+
+
     
