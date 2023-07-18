@@ -13,7 +13,7 @@ def get_account_password():
         logger.warning("Get password from cache")
         return acc_password
     else:
-        logger.warning("Get password from shkeeer")
+        logger.warning("Get password from shkeeper")
         r = {
                 "key": "shkeeper",
                 "persistent_status": "enabled",

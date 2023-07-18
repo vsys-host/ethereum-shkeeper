@@ -97,12 +97,10 @@ def refresh_balances():
                     db.session.commit()
                     db.session.close()
             else:
-                acc_balance = decimal.Decimal(0)
+                acc_balance = decimal.Decimal(w3.fromWei(w3.eth.get_balance(account), "ether"))
                 if Accounts.query.filter_by(address = account, crypto = "ETH").first():
                     pd = Accounts.query.filter_by(address = account, crypto = "ETH").first()            
-                    pd.amount = decimal.Decimal(w3.fromWei(w3.eth.get_balance(account), "ether"))   
-                    acc_balance = decimal.Decimal(w3.fromWei(w3.eth.get_balance(account), "ether"))
-
+                    pd.amount = decimal.Decimal(w3.fromWei(w3.eth.get_balance(account), "ether"))                     
                     with app.app_context():
                         db.session.add(pd)
                         db.session.commit()

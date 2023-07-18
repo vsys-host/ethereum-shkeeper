@@ -33,7 +33,7 @@ config = {
     'LOGGING_LEVEL': os.environ.get('LOGGING_LEVEL', 'INFO'),
     'SQLALCHEMY_DATABASE_URI' : os.environ.get('SQLALCHEMY_DATABASE_URI', "mariadb+pymysql://root:shkeeper@mariadb/ethereum-shkeeper?charset=utf8mb4"),
     'SQLALCHEMY_POOL_SIZE' : os.environ.get('SQLALCHEMY_POOL_SIZE', 30),
-    'UPDATE_TOKEN_BALANCES_EVERY_SECONDS': int(os.environ.get('UPDATE_TOKEN_BALANCES_EVERY_SECONDS', 600)),
+    'UPDATE_TOKEN_BALANCES_EVERY_SECONDS': int(os.environ.get('UPDATE_TOKEN_BALANCES_EVERY_SECONDS', 3600)),
     'API_USERNAME': os.environ.get('ETH_USERNAME', 'shkeeper'),
     'API_PASSWORD': os.environ.get('ETH_PASSWORD', 'shkeeper'),
     'SHKEEPER_KEY': os.environ.get('SHKEEPER_BACKEND_KEY', 'shkeeper'),
