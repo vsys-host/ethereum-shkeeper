@@ -1,4 +1,5 @@
 import requests as rq
+import json
 
 from .logging import logger
 from .config import config
@@ -14,15 +15,11 @@ def get_account_password():
         return acc_password
     else:
         logger.warning("Get password from shkeeper")
-        r = {
-                "key": "shkeeper",
-                "persistent_status": "enabled",
-                "runtime_status": "success"
-            }
-#        r = rq.post(
-#                        f'http://{config["SHKEEPER_HOST"]}/api/v1/USDT/decrypt',
-#                        headers={'X-Shkeeper-Backend-Key': config['SHKEEPER_KEY']}
-#                    )
+        resp = rq.get(
+                        f'http://{config["SHKEEPER_HOST"]}/api/v1/ETH/decrypt',
+                        headers={'X-Shkeeper-Backend-Key': config['SHKEEPER_KEY']}
+                    )
+        r = resp.json()
         if r['persistent_status'] == "disabled":
             logger.warning('Encryption is disabled')
             acc_password =  r['key']
