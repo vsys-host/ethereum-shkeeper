@@ -447,7 +447,7 @@ class Token:
                                                                         "value": self.provider.toHex(self.provider.toWei(need_to_send, "ether")),
                                                                         "gas": self.provider.toHex(gas_coin_count),
                                                                         "maxFeePerGas":  self.provider.toHex(self.provider.toWei(max_fee_per_gas_coin, 'ether')),
-                                                                        "maxPriorityFeePerGas": self.provider.toHex(self.provider.toWei(fee, "ether"))}, config['ACCOUNT_PASSWORD'])
+                                                                        "maxPriorityFeePerGas": self.provider.toHex(self.provider.toWei(fee, "ether"))}, get_account_password())
                 logger.warning(f'send coins to token account: {str(txid.hex())}')
                 time.sleep(int(config['SLEEP_AFTER_SEEDING']))
             # Send tokens to the fee account            
