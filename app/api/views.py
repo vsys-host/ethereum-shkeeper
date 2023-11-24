@@ -63,6 +63,7 @@ def get_status():
 
 @api.post('/transaction/<txid>')
 def get_transaction(txid):
+    related_transactions = []
     list_accounts = w3.geth.personal.list_accounts()
     if g.symbol == 'ETH':
         try:
@@ -80,6 +81,7 @@ def get_transaction(txid):
                 return {'status': 'error', 'msg': 'txid is not related to any known address'}
             amount = w3.fromWei(transaction["value"], "ether") 
             confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+            related_transactions.append([address, amount, confirmations, category])
         except Exception as e:
             return {f'status': 'error', 'msg': {e}}
     elif g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
@@ -94,26 +96,27 @@ def get_transaction(txid):
                 logger.warning(f"There is not any token {g.symbol} transaction with transactionID {txid}")
                 return {'status': 'error', 'msg': 'txid is not found for this crypto '}
             logger.warning(transactions_array)
-            related_transactions = []
+            
             for transaction in transactions_array:
                 if (transaction['args']['to'] in list_accounts) and (transaction['args']['from'] in list_accounts):
                     address = transaction['args']["from"]
                     category = 'internal'
                     amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
                     confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
-                    related_transactions.append[address, amount, confirmations, category]
+                    related_transactions.append([address, amount, confirmations, category])
+
                 elif transaction['args']['to'] in list_accounts:
                     address = transaction['args']["to"]
                     category = 'receive'
                     amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
                     confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
-                    related_transactions.append[address, amount, confirmations, category]
+                    related_transactions.append([address, amount, confirmations, category])
                 elif transaction['args']['from'] in list_accounts:                
                     address = transaction['args']["from"]
                     category = 'send'
                     amount = Decimal(transaction['args'][amount_name]) / Decimal(10** (token_instance.contract.functions.decimals().call()))
                     confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
-                    related_transactions.append[address, amount, confirmations, category]
+                    related_transactions.append([address, amount, confirmations, category])
             if not related_transactions:
                 logger.warning(f"txid {txid} is not related to any known address for {g.symbol}")
                 return {'status': 'error', 'msg': 'txid is not related to any known address'}        
