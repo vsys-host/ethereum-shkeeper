@@ -3,7 +3,7 @@ import time
 
 from web3 import Web3, HTTPProvider
 
-from .models import Settings, db, Wallets
+from .models import Settings, db, Wallets, Accounts
 from .config import config, get_contract_abi, get_contract_address
 from .logging import logger
 from .token import Token, get_all_accounts
