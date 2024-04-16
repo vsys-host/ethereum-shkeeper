@@ -14,8 +14,10 @@ class Encryption:
         password = get_account_password()
         if not password:
             raise Exception(f"Cannot get password from shkeeper, quit")
-        else:
+        elif password and (cls.key is None):
             cls.key  = cls._get_key_from_password(password)
+        else:
+            pass
 
     @classmethod
     def encrypt(cls, cleartext):
