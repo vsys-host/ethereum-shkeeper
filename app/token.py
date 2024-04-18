@@ -335,7 +335,6 @@ class Token:
                                                    "address":self.contract_address,
                                                    "topics": ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", None, None]})  
         for trans in transactions:
-            logger.warning(trans)
             all_transfers.append({"txid":trans.transactionHash.hex(),
                                   "amount": Web3.toInt(hexstr=trans.data), 
                                   "from": '0x'+trans.topics[1].hex()[26:], 
