@@ -50,7 +50,6 @@ def log_loop(last_checked_block, check_interval):
                     token_instance  = Token(token)
                     transfers = token_instance.get_all_transfers(x, x)
                     for transaction in transfers:
-                        logger.warning(transaction)
                         if (token_instance.provider.toChecksumAddress(transaction['from']) in list_accounts or 
                             token_instance.provider.toChecksumAddress(transaction['to']) in list_accounts):
                             handle_event(transaction)
