@@ -151,9 +151,16 @@ def dump():
 
 @api.post('/fee-deposit-account')
 def get_fee_deposit_account():
-    token_instance = Token(g.symbol)
-    return {'account': token_instance.get_fee_deposit_account(), 
-            'balance': token_instance.get_fee_deposit_account_balance()}
+    if g.symbol == 'ETH':
+        coin_instance = Coin(g.symbol)
+        return {'account': coin_instance.get_fee_deposit_account(), 
+                    'balance': coin_instance.get_fee_deposit_coin_balance()}
+    elif g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
+        token_instance = Token(g.symbol)
+        return {'account': token_instance.get_fee_deposit_account(), 
+                'balance': token_instance.get_fee_deposit_account_balance()}
+    else:
+        raise Exception(f'Symbol {g.symbol} cannot be processed')
 
 @api.post('/get_all_addresses')
 def get_all_addresses():
