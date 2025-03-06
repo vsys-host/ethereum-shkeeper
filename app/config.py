@@ -50,6 +50,9 @@ config = {
     'PAYOUT_MULTIPLIER': os.environ.get('PAYOUT_MULTIPLIER', '2'), #multiply the amount of gas for payout, should be >1,
     'PRICE_MULTIPLIER' : os.environ.get('PRICE_MULTIPLIER', '0.9'), #should be <1, used in payout in calc maxFeePerGas to avoid base price changing
     'MAX_PRIORITY_FEE': os.environ.get('MAX_PRIORITY_FEE', '0.00000000000017'), #in ETH
+    'MAX_PRIORITY_FEE_MODE': os.environ.get('MAX_PRIORITY_FEE_MODE', 'static'), # if 'static' then MAX_PRIORITY_FEE used, if 'dynamic' - get from blockchain
+    'DYNAMIC_MAX_PRIORITY_FEE_LIMIT': os.environ.get('DYNAMIC_MAX_PRIORITY_FEE_LIMIT', '0.0000000005'), # The maximum value (in ETH) that cannot be increased when calculating MAX_PRIORITY_FEE in 'dynamic' mode
+    'DYNAMIC_MAX_PRIORITY_FEE_PERCENTILE': os.environ.get('DYNAMIC_MAX_PRIORITY_FEE_PERCENTILE', '20'), # percentile value used in the 'dynamic' mode calculation (int between 10 and 90)
     'SLEEP_AFTER_SEEDING': os.environ.get('SLEEP_AFTER_SEEDING', 60), #in sec
     'ACCOUNT_PASSWORD' : os.environ.get('ACCOUNT_PASSWORD', "shkeeper"), #Password for restoring account in metamask or others, should be str (DEPRECATED)
     'REDIS_HOST': os.environ.get('REDIS_HOST', 'localhost'),

@@ -58,25 +58,32 @@ def multipayout():
 
         if transfer['amount'] <= 0:
             raise Exception(f"Payout amount should be a positive number: {transfer}")
+        
+    coin_inst = Coin('ETH')
+    max_fee = coin_inst.get_max_priority_fee()
 
     if g.symbol == 'ETH':
-        task = (make_multipayout.s(g.symbol, payout_list, Decimal(config['MAX_PRIORITY_FEE']))).apply_async()
+        task = (make_multipayout.s(g.symbol, payout_list, max_fee)).apply_async()
         return{'task_id': task.id}
     elif  g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys(): 
-        task = ( make_multipayout.s(g.symbol, payout_list, Decimal(config['MAX_PRIORITY_FEE']))).apply_async()
+        task = ( make_multipayout.s(g.symbol, payout_list, max_fee)).apply_async()
         return {'task_id': task.id}
     else:
         raise Exception(f"{g.symbol} is not defined in config, cannot make payout")
     
 @api.post('/payout/<to>/<decimal:amount>')
 def payout(to, amount):
+    
+    coin_inst = Coin('ETH')
+    max_fee = coin_inst.get_max_priority_fee()
+
     payout_list = [{ "dest": to, "amount": amount }]
     if g.symbol == 'ETH':
         payout_list = [{ "dest": to, "amount": amount }]
-        task = (make_multipayout.s(g.symbol, payout_list, Decimal(config['MAX_PRIORITY_FEE']))).apply_async()        
+        task = (make_multipayout.s(g.symbol, payout_list, max_fee)).apply_async()        
         return {'task_id': task.id}
     elif  g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
-        task = (make_multipayout.s(g.symbol, payout_list, Decimal(config['MAX_PRIORITY_FEE']))).apply_async()
+        task = (make_multipayout.s(g.symbol, payout_list, max_fee)).apply_async()
         return {'task_id': task.id}
     else:
         raise Exception(f"{g.symbol} is not defined in config, cannot make payout")

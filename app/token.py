@@ -2,6 +2,7 @@ from web3 import HTTPProvider, Web3
 from decimal import Decimal
 from flask import current_app as app
 import time
+import statistics as st
 
 
 from .logging import logger
@@ -38,10 +39,30 @@ class Coin:
         self.fullnode = config["FULLNODE_URL"]
         self.provider =  Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])})) # Web3(HTTPProvider(config["FULLNODE_URL"]))
 
+    def get_max_priority_fee(self):
+        if config['MAX_PRIORITY_FEE_MODE'] == 'static':
+            return Decimal(config['MAX_PRIORITY_FEE'])
+        elif config['MAX_PRIORITY_FEE_MODE'] == 'dynamic':
+            fees = self.provider.eth.fee_history(20, 'latest', [int(config['DYNAMIC_MAX_PRIORITY_FEE_PERCENTILE'])])
+            sorted_fees = []
+            for rew in fees['reward']:
+                sorted_fees.append(rew[0])
+            sorted_fees.sort()
+            mean = int(st.mean(sorted_fees[2:18]))
+            max_fee = Decimal(self.provider.fromWei(mean, "ether"))
+            logger.warning(f"Calculated dynamic fee: {max_fee}")
+            if max_fee > Decimal(config['DYNAMIC_MAX_PRIORITY_FEE_LIMIT']):
+                logger.warning(f"Return max allowed fee from config {Decimal(config['DYNAMIC_MAX_PRIORITY_FEE_LIMIT'])}")
+                return Decimal(config['DYNAMIC_MAX_PRIORITY_FEE_LIMIT'])
+            else:     
+                logger.warning(f'Return calculated fee {max_fee}')
+                return max_fee
+        else:
+            raise Exception("config['MAX_PRIORITY_FEE_MODE'] is incorrect, can be only 'static' or 'dynamic'")
 
     def get_transaction_price(self):
         gas_price = self.provider.eth.gasPrice
-        fee = Decimal(config['MAX_PRIORITY_FEE'])
+        fee = self.get_max_priority_fee()
         multiplier = Decimal(config['MULTIPLIER']) # make max fee per gas as *MULTIPLIER of base price + fee
         # add to need_crypto gas which need for sending crypto to tokken acc
         max_fee_per_gas = ( self.provider.fromWei(gas_price, "ether") + Decimal(fee) ) 
@@ -192,7 +213,7 @@ class Coin:
    
     def drain_account(self, account, destination):
         drain_results = []
-        fee = Decimal(config['MAX_PRIORITY_FEE'])
+        fee = self.get_max_priority_fee() 
         account_balance = Decimal(0)
     
         if not self.provider.isAddress(destination):
@@ -329,7 +350,27 @@ class Token:
                     raise Exception(f"There was exception during query to the database, try again later")
             break
         return Encryption.decrypt(pd.priv_key)
-
+    
+    def get_max_priority_fee(self):
+        if config['MAX_PRIORITY_FEE_MODE'] == 'static':
+            return Decimal(config['MAX_PRIORITY_FEE'])
+        elif config['MAX_PRIORITY_FEE_MODE'] == 'dynamic':
+            fees = self.provider.eth.fee_history(20, 'latest', [int(config['DYNAMIC_MAX_PRIORITY_FEE_PERCENTILE'])])
+            sorted_fees = []
+            for rew in fees['reward']:
+                sorted_fees.append(rew[0])
+            sorted_fees.sort()
+            mean = int(st.mean(sorted_fees[2:18]))
+            max_fee = Decimal(self.provider.fromWei(mean, "ether"))
+            logger.warning(f"Calculated dynamic fee: {max_fee}")
+            if max_fee > Decimal(config['DYNAMIC_MAX_PRIORITY_FEE_LIMIT']):
+                logger.warning(f"Return max allowed fee from config {Decimal(config['DYNAMIC_MAX_PRIORITY_FEE_LIMIT'])}")
+                return Decimal(config['DYNAMIC_MAX_PRIORITY_FEE_LIMIT'])
+            else:     
+                logger.warning(f'Return calculated fee {max_fee}')
+                return max_fee
+        else:
+            raise Exception("config['MAX_PRIORITY_FEE_MODE'] is incorrect, can be only 'static' or 'dynamic'")
 
     def get_all_transfers(self, from_block, to_block):
         all_transfers = []
@@ -347,7 +388,7 @@ class Token:
 
     def get_eth_transaction_price(self):
         gas_price = self.get_gas_price()
-        fee = Decimal(config['MAX_PRIORITY_FEE'])
+        fee = self.get_max_priority_fee() 
         # add to need_crypto gas which need for sending crypto to tokken acc
         max_fee_per_gas = ( self.provider.fromWei(gas_price, "ether") + Decimal(fee) ) 
         eth_transaction = {"from": self.provider.toChecksumAddress(self.get_fee_deposit_account()),
@@ -416,7 +457,7 @@ class Token:
 
     def get_coin_transaction_fee(self):
         address = self.get_fee_deposit_account()
-        fee = Decimal(config['MAX_PRIORITY_FEE'])
+        fee = self.get_max_priority_fee() 
         gas  = self.contract.functions.transfer(address, int((Decimal(0) * 10** (self.contract.functions.decimals().call())))).estimateGas({'from': address})
         gas = int(gas * Decimal(config['MULTIPLIER']))
         gas_price = self.get_gas_price()
@@ -574,7 +615,7 @@ class Token:
         if can_send <= 0:
             return False
         else:            
-            fee = Decimal(config['MAX_PRIORITY_FEE'])
+            fee = self.get_max_priority_fee() 
             gas  = self.contract.functions.transfer(destination, int((Decimal(can_send) * 10** (self.contract.functions.decimals().call())))).estimateGas({'from': account})
             gas = int(gas * Decimal(config['MULTIPLIER']))
             gas_price = self.get_gas_price()
@@ -612,7 +653,7 @@ class Token:
             unsigned_txn = contract_call.buildTransaction({'from': self.provider.toChecksumAddress(account.lower()), 
                                                            'gas':  gas,
                                                            'maxFeePerGas': self.provider.toWei(max_fee_per_gas, 'ether'),
-                                                           'maxPriorityFeePerGas':   self.provider.toWei(Decimal(config['MAX_PRIORITY_FEE']), 'ether'), # without * Decimal(config['MULTIPLIER'])
+                                                           'maxPriorityFeePerGas': self.provider.toWei(Decimal(self.get_max_priority_fee()), 'ether'), 
                                                            'nonce': self.provider.eth.get_transaction_count(account),
                                                            'chainId': self.provider.eth.chain_id})   
             signed_txn = self.provider.eth.account.sign_transaction(unsigned_txn, private_key= self.get_seed_from_address(account)) 
