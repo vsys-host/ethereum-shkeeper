@@ -1,4 +1,5 @@
 from collections import defaultdict
+import requests as rq
 import time
 
 from web3 import Web3, HTTPProvider
@@ -16,8 +17,27 @@ def handle_event(transaction):
     logger.info(f'new transaction: {transaction!r}')
 
 
+def walletnotify_shkeeper(symbol, txid) -> bool:
+    """Notify SHKeeper about transaction"""
+    logger.warning(f"Notifying about {symbol}/{txid}")
+    while True:
+        try:
+            r = rq.post(
+                    f'http://{config["SHKEEPER_HOST"]}/api/v1/walletnotify/{symbol}/{txid}',
+                    headers={'X-Shkeeper-Backend-Key': config['SHKEEPER_KEY']}).json()
+            if r["status"] == "success":
+                logger.warning(f"The notification about {symbol}/{txid} was successful")
+                return True
+            else:
+                logger.warning(f"Failed to notify SHKeeper about {symbol}/{txid}, received response: {r}")
+                time.sleep(5)
+        except Exception as e:
+            logger.warning(f'Shkeeper notification failed for {symbol}/{txid}: {e}')
+            time.sleep(10)
+
+
 def log_loop(last_checked_block, check_interval):
-    from .tasks import walletnotify_shkeeper, drain_account
+    from .tasks import drain_account
     from app import create_app
     app = create_app()
     app.app_context().push()
@@ -40,7 +60,7 @@ def log_loop(last_checked_block, check_interval):
                 for transaction in block.transactions:
                     if transaction['to'] in list_accounts or transaction['from'] in list_accounts:
                         handle_event(transaction)
-                        walletnotify_shkeeper.delay('ETH', transaction['hash'].hex())
+                        walletnotify_shkeeper('ETH', transaction['hash'].hex())
                         if ((transaction['to'] in list_accounts and transaction['from']  not in list_accounts) and 
                             ((w3.eth.block_number - x) < 40)):
                             drain_account.delay('ETH', transaction['to'])
@@ -53,13 +73,13 @@ def log_loop(last_checked_block, check_interval):
                         if (token_instance.provider.toChecksumAddress(transaction['from']) in list_accounts or 
                             token_instance.provider.toChecksumAddress(transaction['to']) in list_accounts):
                             handle_event(transaction)
-                            walletnotify_shkeeper.delay(token, transaction['txid'])
+                            walletnotify_shkeeper(token, transaction['txid'])
                             if ((token_instance.provider.toChecksumAddress(transaction['from']) not in list_accounts and 
                                 token_instance.provider.toChecksumAddress(transaction['to']) in list_accounts) and 
                                 ((w3.eth.block_number - x) < 40)):
                                 drain_account.delay(token, token_instance.provider.toChecksumAddress(transaction['to']))
                 
-                last_checked_block = x # TODO store this value in database
+                last_checked_block = x 
 
                 pd = Settings.query.filter_by(name = "last_block").first()
                 pd.value = x
