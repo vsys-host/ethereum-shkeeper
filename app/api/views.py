@@ -81,20 +81,84 @@ def get_transaction(txid):
     if g.symbol == 'ETH':
         try:
             transaction = w3.eth.get_transaction(txid)
-            if (transaction['to'] in list_accounts) and (transaction['from'] in list_accounts):
-                address = transaction["from"]
-                category = 'internal'
-            elif transaction['to'] in list_accounts:
-                address = transaction["to"]
-                category = 'receive'
-            elif transaction['from'] in list_accounts:                
-                address = transaction["from"]
-                category = 'send'
+            logger.warning(f"Checking transaction {txid}")
+            if (transaction['to'] in list_accounts) or (transaction['from'] in list_accounts):
+                logger.warning(f"Found related addresses in {txid}, checking it as a regular ETH transaction")            
+                if (transaction['to'] in list_accounts) and (transaction['from'] in list_accounts):
+                    address = transaction["from"]
+                    category = 'internal'
+                elif transaction['to'] in list_accounts:
+                    address = transaction["to"]
+                    category = 'receive'
+                elif transaction['from'] in list_accounts:                
+                    address = transaction["from"]
+                    category = 'send'
+                amount = w3.fromWei(transaction["value"], "ether")
+                confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+                related_transactions.append([address, amount, confirmations, category])
             else:
-                return {'status': 'error', 'msg': 'txid is not related to any known address'}
-            amount = w3.fromWei(transaction["value"], "ether") 
-            confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
-            related_transactions.append([address, amount, confirmations, category])
+                logger.warning(f"Addresses in {txid} is not related to any SHKeeper addresses. Checking {txid} as a smartcontract internal transaction")
+                block_num = int(transaction["blockNumber"])
+                block_eth_tx_addrs = []
+
+                # check if there was regular eth transactions to our addresses in block
+                block = w3.eth.getBlock(block_num, True)       
+                for tr in block.transactions:
+                    if tr['to'] in list_accounts or tr['from'] in list_accounts:
+                        block_eth_tx_addrs.append(tr['to'])
+                        block_eth_tx_addrs.append(tr['from'])
+                logger.warning(f"Regular ETH transactions to our addresses in {block_num} block: {block_eth_tx_addrs}")
+
+                related_internal_addr = []
+
+                for acc_addr in list_accounts:
+                    if acc_addr[2:].lower() in transaction['input']:
+                        if acc_addr not in block_eth_tx_addrs:
+                            related_internal_addr.append(acc_addr)
+                        else:
+                            logger.warning(f"Found internal transaction to {acc_addr} but skip it because there was already a regular ETH transaction to {acc_addr} in {block_num} block")
+                
+                if len(related_internal_addr) > 0:
+                    logger.warning(f"Found internal transactions to {related_internal_addr}")
+                else:
+                    logger.warning(f"Did not find any related addresses in tx {txid}")
+                    return {'status': 'error', 'msg': 'txid is not related to any known address'}
+                
+                # check for other internal transactions to related addresses in this 
+                token_addresses = []
+                addresses_in_another_txs = []
+
+                for token in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
+                    token_addresses.append(config['TOKENS'][config["CURRENT_ETH_NETWORK"]][token]['contract_address'])
+
+                logger.warning("Checking block for another internal txs to related addresses")
+                for tr in block.transactions:
+                    if ((len(tr.input) > 6) and # check only txs with input (regular ETH transactions input is '0x')
+                        (tr['to'] not in token_addresses) and  # do not check internal tx to known token addresses and requested tx
+                        tr['hash'].hex() != txid ):
+                        for addr in related_internal_addr:
+                            if addr[2:].lower() in tr.input:
+                                logger.warning(f"Found another internal transaction {tr['hash'].hex()} to our address {addr} in the same block, skip it!")
+                                addresses_in_another_txs.append(addr)
+                
+                clear_addresses = set(related_internal_addr) - set(addresses_in_another_txs)
+
+                if len(clear_addresses) == 0:
+                    logger.warning(f'No addresses are exclusively associated with the requested transaction in this block; return an empty list')
+
+                for acc_addr in clear_addresses:
+                    balance_before = Decimal(w3.fromWei(w3.eth.get_balance(acc_addr, block_num-1), "ether"))
+                    balance_after = Decimal(w3.fromWei(w3.eth.get_balance(acc_addr, block_num), "ether"))
+                    category = 'receive'
+                    amount = balance_after - balance_before
+                    confirmations = int(w3.eth.blockNumber) - int(transaction["blockNumber"])
+                    if amount > 0: # skip 0 amount smartcontract tx 
+                        related_transactions.append([acc_addr, amount, confirmations, category])
+
+                if len(related_transactions) == 0:
+                    logger.warning(f'There is not any transactions with amount > 0, respond with empty list')
+                    
+               
         except Exception as e:
             return {f'status': 'error', 'msg': {e}}
     elif g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():

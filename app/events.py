@@ -1,6 +1,7 @@
 from collections import defaultdict
 import requests as rq
 import time
+import ahocorasick
 
 from web3 import Web3, HTTPProvider
 
@@ -42,6 +43,11 @@ def log_loop(last_checked_block, check_interval):
     app = create_app()
     app.app_context().push()
 
+    token_addresses = []
+
+    for token in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
+        token_addresses.append(config['TOKENS'][config["CURRENT_ETH_NETWORK"]][token]['contract_address'])
+
     while True:       
         
         last_block =  w3.eth.block_number
@@ -54,12 +60,23 @@ def log_loop(last_checked_block, check_interval):
             pass
         else:      
             list_accounts = set(get_all_accounts()) 
+            account_fragments = {addr[2:].lower() for addr in list_accounts} # for internal transaction check
+  
+            A = ahocorasick.Automaton()
+            for idx, word in enumerate(account_fragments):
+                A.add_word(word, (idx, word))
+            A.make_automaton()
+
             for x in range(last_checked_block + 1, last_block):
-                logger.warning(f"now checking block {x}")                
+                logger.warning(f"now checking block {x}")      
+                block_txs = []    
+                block_internal_txs = []      
                 block = w3.eth.getBlock(x, True)       
                 for transaction in block.transactions:
                     if transaction['to'] in list_accounts or transaction['from'] in list_accounts:
                         handle_event(transaction)
+                        block_txs.append(transaction['to'].lower())
+                        block_txs.append(transaction['from'].lower())
                         walletnotify_shkeeper('ETH', transaction['hash'].hex())
                         if ((transaction['to'] in list_accounts and transaction['from']  not in list_accounts) and 
                             ((w3.eth.block_number - x) < 40)):
@@ -78,6 +95,28 @@ def log_loop(last_checked_block, check_interval):
                                 token_instance.provider.toChecksumAddress(transaction['to']) in list_accounts) and 
                                 ((w3.eth.block_number - x) < 40)):
                                 drain_account.delay(token, token_instance.provider.toChecksumAddress(transaction['to']))
+
+                start_t = time.time()
+                
+                for transaction in block.transactions:
+                    if ((len(transaction.input) > 6) and # check only transactions with input (regular ETH transactions input is '0x')
+                        (transaction['to'] not in token_addresses)): # do not check internal transactions to known token addresses
+
+                        for end_index, (idx, found_address) in A.iter(transaction.input):
+                            logger.warning(f"Found internal transaction {transaction['hash'].hex()} to our address 0x{found_address}")
+                            if (str('0x'+found_address) not in block_txs): # check if a regular ETH tx was in this block to this address  
+                                if (str('0x'+found_address) not in block_internal_txs):  # check if an internal tx to this address was in this block 
+                                    block_internal_txs.append(str('0x'+found_address)) 
+                                    walletnotify_shkeeper('ETH', transaction['hash'].hex())
+                                    break # need only 1 notify to get all internal txs to our addresses
+                                else:
+                                    logger.warning(f"There was already an internal transaction to 0x{found_address} in {x} block, skip notification")
+                            else:
+                                logger.warning(f"There was already a regular ETH transaction to 0x{found_address} in {x} block, skip notification")
+
+
+                finish_t = time.time()
+                logger.warning(f"internal transaction check time {finish_t - start_t}")
                 
                 last_checked_block = x 
 
