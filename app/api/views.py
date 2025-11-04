@@ -160,7 +160,8 @@ def get_transaction(txid):
                     
                
         except Exception as e:
-            return {f'status': 'error', 'msg': str(e)}
+             logger.warning({f'status': 'error', 'msg': str(e)})
+             return []
     elif g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
         token_instance  = Token(g.symbol)
         try:
