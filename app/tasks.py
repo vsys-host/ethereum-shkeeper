@@ -119,15 +119,34 @@ def refresh_balances():
 @celery.task(bind=True)
 @skip_if_running
 def drain_account(self, symbol, account):
-    logger.warning(f"Start draining from account {account} crypto {symbol}")
+    logger.warning(f"Draining to fee-deposit account is disabled")
+
+    # logger.warning(f"Start draining from account {account} crypto {symbol}")
+    # # return False
+    # if symbol == "ETH":
+    #     inst = Coin(symbol)
+    #     destination = inst.get_fee_deposit_account()
+    #     results = inst.drain_account(account, destination)
+    # elif symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
+    #     inst = Token(symbol)
+    #     destination = inst.get_fee_deposit_account()
+    #     results = inst.drain_tocken_account(account, destination)
+    # else:
+    #     raise Exception(f"Symbol is not in config")
+    
+    # return results
+
+
+@celery.task(bind=True)
+@skip_if_running
+def withdraw_to_external_wallet_task(self, symbol, account, destination):
+    logger.warning(f"Start custom draining from account {account} crypto {symbol} to {destination}")
     # return False
     if symbol == "ETH":
         inst = Coin(symbol)
-        destination = inst.get_fee_deposit_account()
         results = inst.drain_account(account, destination)
     elif symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys():
         inst = Token(symbol)
-        destination = inst.get_fee_deposit_account()
         results = inst.drain_tocken_account(account, destination)
     else:
         raise Exception(f"Symbol is not in config")

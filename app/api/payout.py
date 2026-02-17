@@ -5,7 +5,7 @@ from flask import current_app as app
 from web3 import Web3, HTTPProvider
 
 from .. import celery
-from ..tasks import make_multipayout 
+from ..tasks import make_multipayout, withdraw_to_external_wallet_task
 from ..utils import BaseConverter
 from . import api
 
@@ -95,3 +95,40 @@ def get_task(id):
         return {'status': task.status, 'result': str(task.result)}
     return {'status': task.status, 'result': task.result}
 
+@api.post('/withdraw_to_external_wallet')
+def withdraw_to_external_wallet():
+    # [{'dest': '0x00001000000xxxxxx', 'source': '0x00002000000yyyyyyy'}]
+    w3 = Web3(HTTPProvider(config["FULLNODE_URL"], request_kwargs={'timeout': int(config['FULLNODE_TIMEOUT'])}))
+    
+    try:
+        withdraw_list = request.get_json(force=True)
+    except Exception as e:
+        raise Exception(f"Bad JSON in drain list: {e}")
+
+    if not withdraw_list:
+            raise Exception(f"Withdraw list is empty!")
+
+    for transfer in withdraw_list:
+        try:
+            is_address = w3.isAddress(transfer['dest'])
+        except Exception as e:
+            raise Exception(f"Bad destination address in {transfer}: {e}")
+        if not is_address:
+            raise Exception(f"Bad destination address in {transfer}")
+        
+        try:
+            is_address = w3.isAddress(transfer['source'])
+        except Exception as e:
+            raise Exception(f"Bad source address in {transfer}: {e}")
+        if not is_address:
+            raise Exception(f"Bad source address in {transfer}")
+
+    logger.warning(f'Withdraw list {withdraw_list}')
+    if g.symbol == 'ETH': 
+        task = (withdraw_to_external_wallet_task.s(g.symbol,withdraw_list[0]['source'], withdraw_list[0]['dest'])).apply_async()
+        return{'task_id': task.id}
+    elif  g.symbol in config['TOKENS'][config["CURRENT_ETH_NETWORK"]].keys(): 
+        task = (withdraw_to_external_wallet_task.s(g.symbol,withdraw_list[0]['source'], withdraw_list[0]['dest'])).apply_async()
+        return {'task_id': task.id}
+    else:
+        raise Exception(f"{g.symbol} is not defined in config, cannot drain")
