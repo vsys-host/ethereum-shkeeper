@@ -291,15 +291,26 @@ class Coin:
                     raise Exception(f"There was exception during query to the database, try again later")
             break
         return Encryption.decrypt(pd.priv_key)
-        
 
+   
     def get_dump(self):
         logger.warning('Start dumping wallets')
         all_wallets = {}
-        address_list = get_all_accounts()
-        for address in address_list:
-            all_wallets.update({address: {'public_address': address,
-                                          'secret': self.get_seed_from_address(address)}})
+        tries = 3
+        for i in range(tries):
+            try:
+                pd = Wallets.query.all()
+            except:
+                if i < tries - 1: # i is zero indexed
+                    db.session.rollback()
+                    continue
+                else:
+                    db.session.rollback()
+                    raise Exception(f"There was exception during query to the database, try again later")
+            break
+        for wallet in pd:
+            all_wallets.update({wallet.pub_address: {'public_address': wallet.pub_address,
+                                                     'secret': Encryption.decrypt(wallet.priv_key)}})
         return all_wallets
 
     def save_wallet_to_db(self, wallet):
